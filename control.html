@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>記分板控制區（Firebase 同步）</title>
+  <title>記分板控制區（聯盟版 + Firebase 同步）</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -14,16 +14,15 @@
     }
     .container {
       background: #ffffff;
-      max-width: 960px;
+      max-width: 1100px;
       width: 100%;
       padding: 20px 24px 28px;
       border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 10px 25px rgba(0,0,0,.08);
     }
     h1 {
       text-align: center;
-      margin-top: 0;
-      margin-bottom: 8px;
+      margin: 0 0 8px;
       font-size: 24px;
     }
     .subtitle {
@@ -34,24 +33,18 @@
     }
     .top-bar {
       display: flex;
-      align-items: center;
-      gap: 8px;
       flex-wrap: wrap;
-      margin-bottom: 16px;
+      gap: 8px;
       justify-content: center;
+      align-items: center;
+      margin-bottom: 16px;
     }
-    .top-bar label {
-      font-size: 14px;
-    }
-    .top-bar input[type="number"],
+    .top-bar label { font-size: 14px; }
     .top-bar input[type="text"] {
       padding: 4px 6px;
       border-radius: 6px;
       border: 1px solid #bbb;
       font-size: 14px;
-    }
-    .top-bar input[type="number"] {
-      width: 80px;
     }
     .btn {
       padding: 6px 12px;
@@ -61,147 +54,188 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    .btn-primary { background: #007bff; color: white; }
-    .btn-reset { background: #6c757d; color: white; }
-    .btn-sort { background: #17a2b8; color: white; }
-    .btn:hover { opacity: 0.9; }
+    .btn-primary { background:#007bff;color:#fff; }
+    .btn-reset { background:#6c757d;color:#fff; }
+    .btn-sort  { background:#17a2b8;color:#fff; }
+    .btn-small { padding:4px 8px;font-size:12px; }
+    .btn:hover { opacity:.9; }
     .layout {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 20px;
-      align-items: flex-start;
+      display:grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap:20px;
+      align-items:flex-start;
     }
     .panel {
-      background: #fafafa;
-      border-radius: 12px;
-      padding: 12px 14px 16px;
-      border: 1px solid #e0e0e0;
+      background:#fafafa;
+      border-radius:12px;
+      padding:12px 14px 16px;
+      border:1px solid #e0e0e0;
     }
     .panel-title {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 8px;
+      font-size:15px;
+      font-weight:600;
+      margin-bottom:6px;
     }
     .panel-subtitle {
-      font-size: 12px;
-      color: #777;
-      margin-bottom: 10px;
+      font-size:12px;
+      color:#777;
+      margin-bottom:10px;
     }
-    #controlArea .player-row {
-      display: grid;
-      grid-template-columns: 1.3fr 0.5fr 1.7fr;
-      gap: 6px;
-      align-items: center;
-      padding: 4px 4px;
-      border-radius: 6px;
-      margin-bottom: 4px;
+
+    .alliance-block {
+      border-radius:10px;
+      border:1px solid #ddd;
+      margin-bottom:10px;
+      background:#fff;
     }
-    #controlArea .player-row:nth-child(odd) { background: #ffffff; }
-    #controlArea .player-row:nth-child(even) { background: #f0f0f0; }
+    .alliance-header {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 8px;
+      border-bottom:1px solid #eee;
+      background:#f3f3f3;
+    }
+    .alliance-header input {
+      flex:1;
+      padding:4px 6px;
+      border-radius:6px;
+      border:1px solid #ccc;
+      font-size:13px;
+    }
+    .alliance-header span {
+      font-size:12px;
+      color:#555;
+      white-space:nowrap;
+    }
+    .alliance-body {
+      padding:6px 8px 8px;
+    }
+
+    .player-row {
+      display:grid;
+      grid-template-columns: 1.7fr 0.6fr 2.1fr 0.4fr;
+      gap:6px;
+      align-items:center;
+      padding:3px 0;
+    }
+    .player-row:nth-child(odd){ background:#fafafa; }
+    .player-row:nth-child(even){ background:#f0f0f0; }
+
     .name-input {
-      width: 100%;
-      padding: 5px 7px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 13px;
-      box-sizing: border-box;
+      width:100%;
+      padding:4px 6px;
+      border-radius:6px;
+      border:1px solid #ccc;
+      font-size:13px;
+      box-sizing:border-box;
     }
     .name-input:focus {
-      outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+      outline:none;
+      border-color:#007bff;
+      box-shadow:0 0 0 2px rgba(0,123,255,.15);
     }
     .score-box {
-      text-align: center;
-      font-weight: bold;
-      font-size: 18px;
+      text-align:center;
+      font-weight:bold;
+      font-size:16px;
     }
     .buttons {
-      display: flex;
-      justify-content: center;
-      gap: 4px;
-      flex-wrap: wrap;
+      display:flex;
+      flex-wrap:wrap;
+      gap:3px;
+      justify-content:center;
     }
-    .btn-plus, .btn-minus {
-      padding: 3px 6px;
-      font-size: 12px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      min-width: 34px;
+    .btn-plus,.btn-minus {
+      padding:2px 5px;
+      font-size:11px;
+      border-radius:6px;
+      border:none;
+      cursor:pointer;
+      min-width:30px;
     }
-    .btn-plus { background: #28a745; color: white; }
-    .btn-minus { background: #dc3545; color: white; }
-    .btn-plus:hover, .btn-minus:hover { opacity: 0.9; }
+    .btn-plus  { background:#28a745;color:#fff; }
+    .btn-minus { background:#dc3545;color:#fff; }
+    .btn-del {
+      background:#ff9800;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      cursor:pointer;
+      padding:2px 6px;
+      font-size:12px;
+    }
 
     table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
     }
-    thead { background: #e9ecef; }
-    th, td {
-      padding: 6px 8px;
-      border-bottom: 1px solid #ddd;
-      text-align: center;
+    thead{ background:#e9ecef; }
+    th,td{
+      padding:6px 8px;
+      border-bottom:1px solid #ddd;
+      text-align:center;
     }
-    tbody tr:nth-child(odd) { background: #ffffff; }
-    tbody tr:nth-child(even) { background: #f8f9fa; }
-    .rank-col { width: 40px; }
-    .name-col { text-align: left; }
-    .toolbar-bottom {
-      display: flex;
-      justify-content: flex-start;
-      gap: 8px;
-      align-items: center;
-      margin-top: 12px;
-      flex-wrap: wrap;
+    tbody tr:nth-child(odd){ background:#fff; }
+    tbody tr:nth-child(even){ background:#f8f9fa; }
+    .rank-col{ width:40px; }
+    .ally-col{ width:90px; }
+    .name-col{ text-align:left; }
+
+    .toolbar-bottom{
+      display:flex;
+      justify-content:flex-start;
+      gap:8px;
+      align-items:center;
+      margin-top:12px;
+      flex-wrap:wrap;
     }
-    .small-note {
-      font-size: 12px;
-      color: #777;
+    .small-note{
+      font-size:12px;
+      color:#777;
     }
-    @media (max-width: 860px) {
-      .layout { grid-template-columns: 1fr; }
+    @media(max-width:960px){
+      .layout{ grid-template-columns:1fr; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>記分板控制區（Firebase 同步）</h1>
+    <h1>記分板控制區（六大聯盟）</h1>
     <div class="subtitle">
-      這頁可以調整分數，同步寫入 Firebase。<br>
-      觀戰頁請用 <code>view.html?room=同一個房名</code>。
+      房間名稱相同即可同步；每個聯盟可自由新增 / 刪除玩家。
     </div>
 
     <div class="top-bar">
       <label>房間名稱(room)：</label>
-      <input type="text" id="roomInput" value="" placeholder="例如: classA" />
-      <label for="playerCount">玩家人數：</label>
-      <input type="number" id="playerCount" min="1" max="50" value="10" />
-      <button class="btn btn-primary" id="createBtn">建立玩家</button>
-      <button class="btn btn-reset" id="resetBtn">全部分數歸零</button>
+      <input type="text" id="roomInput" placeholder="例如：classA" />
+      <button class="btn btn-primary" id="changeRoomBtn">切換房間</button>
+      <button class="btn btn-reset" id="resetScoreBtn">全部分數歸零</button>
     </div>
 
     <div class="layout">
-      <!-- 左邊控制 -->
+      <!-- 左側：六個聯盟控制區 -->
       <div class="panel">
-        <div class="panel-title">控制區</div>
-        <div class="panel-subtitle">名字可改，按 -3/-2/-1/+1/+2/+3 調分數。</div>
-        <div id="controlArea"></div>
+        <div class="panel-title">聯盟與玩家管理</div>
+        <div class="panel-subtitle">
+          每個聯盟可改名，按「新增玩家」加入，🗑 刪除該玩家。
+        </div>
+        <div id="alliancesContainer"></div>
       </div>
 
-      <!-- 右邊觀戰（同頁預覽） -->
+      <!-- 右側：總排行榜預覽 -->
       <div class="panel">
-        <div class="panel-title">觀戰預覽（與 view.html 顯示內容相同）</div>
-        <div class="panel-subtitle">實際給觀眾請用獨立的 view.html。</div>
-
+        <div class="panel-title">總排行榜預覽</div>
+        <div class="panel-subtitle">
+          view.html 觀戰頁會顯示與此區相同的內容。
+        </div>
         <table>
           <thead>
             <tr>
               <th class="rank-col">名次</th>
-              <th>編號</th>
-              <th class="name-col">名字</th>
+              <th class="ally-col">聯盟</th>
+              <th class="name-col">玩家</th>
               <th>分數</th>
             </tr>
           </thead>
@@ -210,7 +244,7 @@
 
         <div class="toolbar-bottom">
           <button class="btn btn-sort" id="sortBtn">查看結果（由高到低排序）</button>
-          <span class="small-note" id="sortNote">目前：依建立順序顯示</span>
+          <span class="small-note" id="sortNote">目前：依加入順序顯示</span>
         </div>
       </div>
     </div>
@@ -218,7 +252,6 @@
 
   <!-- Firebase + 邏輯 -->
   <script type="module">
-    // ===== 匯入 Firebase SDK（使用 CDN 模組版） =====
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -233,59 +266,82 @@
       measurementId: "G-0ZXW9PQKVV"
     };
 
-    // ===== 初始化 Firebase =====
     const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    const db  = getDatabase(app);
 
-    // ===== DOM 元素 =====
-    const controlArea = document.getElementById("controlArea");
-    const viewBody = document.getElementById("viewBody");
-    const playerCountInput = document.getElementById("playerCount");
-    const createBtn = document.getElementById("createBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const sortBtn = document.getElementById("sortBtn");
-    const sortNote = document.getElementById("sortNote");
-    const roomInput = document.getElementById("roomInput");
+    // DOM
+    const roomInput          = document.getElementById("roomInput");
+    const changeRoomBtn      = document.getElementById("changeRoomBtn");
+    const resetScoreBtn      = document.getElementById("resetScoreBtn");
+    const alliancesContainer = document.getElementById("alliancesContainer");
+    const viewBody           = document.getElementById("viewBody");
+    const sortBtn            = document.getElementById("sortBtn");
+    const sortNote           = document.getElementById("sortNote");
 
-    // 房間名稱：網址 ?room=xxx 優先，其次 input 的值，預設 "default"
+    // 房間 id
     const urlParams = new URLSearchParams(location.search);
-    const urlRoom = urlParams.get("room");
+    const urlRoom   = urlParams.get("room");
     roomInput.value = urlRoom || "default";
-    let roomId = roomInput.value.trim() || "default";
-    let roomRef = ref(db, "rooms/" + roomId);
+    let roomId      = roomInput.value.trim() || "default";
+    let roomRef     = ref(db, "rooms/" + roomId);
 
-    let players = [];
+    // 狀態
+    let alliances    = []; // [{id,name,players:[{id,name,score}]}]
     let isSortedView = false;
-    let hasInitialData = false;
-    let isWriting = false; // 避免自己寫入再觸發時重複處理
+    let nextPlayerId = 1;
+    let isWriting    = false;
+    let hasInitial   = false;
 
-    // 監聽房間資料變化
-    onValue(roomRef, (snapshot) => {
-      if (isWriting) return; // 自己剛寫入時略過一次
-      const data = snapshot.val();
-      if (data && Array.isArray(data.players)) {
-        players = data.players;
-        isSortedView = !!data.isSortedView;
-        hasInitialData = true;
-        playerCountInput.value = players.length || 10;
-        renderControlArea();
-        updateSortUI();
-        renderView();
-      } else {
-        if (!hasInitialData) {
-          // 第一次沒資料 → 建立預設玩家後寫入
-          createPlayersFromCount();
-          writeState();
-          hasInitialData = true;
-        }
+    // 建立預設六大聯盟
+    function initDefaultAlliances() {
+      alliances = [];
+      const names = ["第一聯盟","第二聯盟","第三聯盟","第四聯盟","第五聯盟","第六聯盟"];
+      for (let i = 0; i < 6; i++) {
+        alliances.push({
+          id: i + 1,
+          name: names[i],
+          players: []
+        });
       }
-    });
+      nextPlayerId = 1;
+    }
 
-    // 將目前狀態寫入 Firebase
+    function calcNextIdFromData() {
+      let maxId = 0;
+      alliances.forEach(a => {
+        a.players.forEach(p => {
+          if (typeof p.id === "number" && p.id > maxId) maxId = p.id;
+        });
+      });
+      return maxId + 1;
+    }
+
+    // 監聽 Firebase
+    function attachRoomListener() {
+      onValue(roomRef, (snapshot) => {
+        if (isWriting) return;
+        const data = snapshot.val();
+        if (data && Array.isArray(data.alliances)) {
+          alliances    = data.alliances;
+          isSortedView = !!data.isSortedView;
+          nextPlayerId = data.nextPlayerId || calcNextIdFromData();
+        } else {
+          // 舊資料或空資料 → 初始化
+          initDefaultAlliances();
+          writeState();
+        }
+        hasInitial = true;
+        renderAll();
+      });
+    }
+
+    attachRoomListener();
+
     function writeState() {
       const data = {
-        players: players,
-        isSortedView: isSortedView
+        alliances,
+        isSortedView,
+        nextPlayerId
       };
       isWriting = true;
       set(roomRef, data).finally(() => {
@@ -293,114 +349,158 @@
       });
     }
 
-    // 切換房間（若你中途改房名）
-    roomInput.addEventListener("change", () => {
-      const newRoom = roomInput.value.trim() || "default";
-      if (newRoom === roomId) return;
-      roomId = newRoom;
-      roomRef = ref(db, "rooms/" + roomId);
-      // 不強制清除舊資料，由 onValue 重新接
-      hasInitialData = false;
-    });
-
-    // 建立玩家
-    function createPlayersFromCount() {
-      let count = parseInt(playerCountInput.value, 10);
-      if (isNaN(count) || count <= 0) {
-        count = 10;
-        playerCountInput.value = 10;
-      }
-      if (count > 50) {
-        count = 50;
-        playerCountInput.value = 50;
-      }
-
-      players = [];
-      for (let i = 0; i < count; i++) {
-        players.push({
-          id: i + 1,
-          name: "玩家 " + (i + 1),
-          score: 0
-        });
-      }
-      renderControlArea();
-      renderView();
+    function renderAll() {
+      renderAlliancesControl();
+      renderViewTable();
+      updateSortUI();
     }
 
-    // 渲染控制區
-    function renderControlArea() {
-      controlArea.innerHTML = "";
-      players.forEach((player, index) => {
-        const row = document.createElement("div");
-        row.className = "player-row";
+    // 渲染左側聯盟控制區
+    function renderAlliancesControl() {
+      alliancesContainer.innerHTML = "";
+      alliances.forEach((ally, allyIndex) => {
+        const block = document.createElement("div");
+        block.className = "alliance-block";
+
+        const header = document.createElement("div");
+        header.className = "alliance-header";
 
         const nameInput = document.createElement("input");
-        nameInput.type = "text";
-        nameInput.className = "name-input";
-        nameInput.value = player.name;
-        nameInput.placeholder = "玩家 " + player.id;
-        nameInput.addEventListener("input", function () {
-          players[index].name = nameInput.value || ("玩家 " + player.id);
+        nameInput.value = ally.name;
+        nameInput.addEventListener("input", () => {
+          alliances[allyIndex].name = nameInput.value || `第${ally.id}聯盟`;
           writeState();
-          renderView();
+          renderViewTable();
         });
 
-        const scoreBox = document.createElement("div");
-        scoreBox.className = "score-box";
-        scoreBox.textContent = player.score;
+        const countSpan = document.createElement("span");
+        countSpan.textContent = `成員：${ally.players.length} 人`;
 
-        const btnArea = document.createElement("div");
-        btnArea.className = "buttons";
+        const addBtn = document.createElement("button");
+        addBtn.className = "btn btn-primary btn-small";
+        addBtn.textContent = "新增玩家";
+        addBtn.addEventListener("click", () => {
+          const newPlayer = {
+            id: nextPlayerId++,
+            name: "新玩家 " + nextPlayerId,
+            score: 0
+          };
+          alliances[allyIndex].players.push(newPlayer);
+          writeState();
+          renderAll(); // 重新畫，更新人數
+        });
 
-        const deltas = [-3, -2, -1, 1, 2, 3];
-        deltas.forEach((d) => {
-          const btn = document.createElement("button");
-          btn.className = d > 0 ? "btn-plus" : "btn-minus";
-          btn.textContent = (d > 0 ? "+" : "") + d;
-          btn.addEventListener("click", function () {
-            players[index].score += d;
-            scoreBox.textContent = players[index].score;
+        header.appendChild(nameInput);
+        header.appendChild(countSpan);
+        header.appendChild(addBtn);
+
+        const body = document.createElement("div");
+        body.className = "alliance-body";
+
+        ally.players.forEach((player, pIndex) => {
+          const row = document.createElement("div");
+          row.className = "player-row";
+
+          const nameInputP = document.createElement("input");
+          nameInputP.className = "name-input";
+          nameInputP.value = player.name;
+          nameInputP.placeholder = "玩家名稱";
+          nameInputP.addEventListener("input", () => {
+            alliances[allyIndex].players[pIndex].name =
+              nameInputP.value || `玩家 ${player.id}`;
             writeState();
-            renderView();
+            renderViewTable();
           });
-          btnArea.appendChild(btn);
+
+          const scoreBox = document.createElement("div");
+          scoreBox.className = "score-box";
+          scoreBox.textContent = player.score;
+
+          const btnArea = document.createElement("div");
+          btnArea.className = "buttons";
+
+          const deltas = [-3,-2,-1,1,2,3];
+          deltas.forEach(d => {
+            const btn = document.createElement("button");
+            btn.className = d > 0 ? "btn-plus" : "btn-minus";
+            btn.textContent = (d>0?"+":"") + d;
+            btn.addEventListener("click", () => {
+              alliances[allyIndex].players[pIndex].score += d;
+              scoreBox.textContent =
+                alliances[allyIndex].players[pIndex].score;
+              writeState();
+              renderViewTable();
+            });
+            btnArea.appendChild(btn);
+          });
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn-del";
+          delBtn.textContent = "🗑";
+          delBtn.title = "刪除這位玩家";
+          delBtn.addEventListener("click", () => {
+            alliances[allyIndex].players.splice(pIndex,1);
+            writeState();
+            renderAll();
+          });
+
+          row.appendChild(nameInputP);
+          row.appendChild(scoreBox);
+          row.appendChild(btnArea);
+          row.appendChild(delBtn);
+
+          body.appendChild(row);
         });
 
-        row.appendChild(nameInput);
-        row.appendChild(scoreBox);
-        row.appendChild(btnArea);
-        controlArea.appendChild(row);
+        block.appendChild(header);
+        block.appendChild(body);
+        alliancesContainer.appendChild(block);
       });
     }
 
-    // 渲染觀戰表格
-    function renderView() {
+    // 渲染右側排行榜
+    function renderViewTable() {
       viewBody.innerHTML = "";
+
+      // 把六個聯盟展平成一個陣列
+      let allPlayers = [];
+      alliances.forEach(ally => {
+        ally.players.forEach(p => {
+          allPlayers.push({
+            id: p.id,
+            name: p.name,
+            score: p.score,
+            allianceName: ally.name
+          });
+        });
+      });
+
       let dataToShow;
       if (isSortedView) {
-        dataToShow = [...players].sort((a, b) => {
+        dataToShow = [...allPlayers].sort((a,b) => {
           if (b.score !== a.score) return b.score - a.score;
           return a.id - b.id;
         });
       } else {
-        dataToShow = players;
+        dataToShow = allPlayers; // 原始加入順序
       }
 
       dataToShow.forEach((player, idx) => {
         const tr = document.createElement("tr");
-        const tdRank = document.createElement("td");
-        const tdId = document.createElement("td");
-        const tdName = document.createElement("td");
-        const tdScore = document.createElement("td");
 
-        tdRank.textContent = idx + 1;
-        tdId.textContent = player.id;
-        tdName.textContent = player.name;
-        tdName.className = "name-col";
+        const tdRank = document.createElement("td");
+        const tdAlly = document.createElement("td");
+        const tdName = document.createElement("td");
+        const tdScore= document.createElement("td");
+
+        tdRank.textContent  = idx + 1;
+        tdAlly.textContent  = player.allianceName;
+        tdName.textContent  = player.name;
+        tdName.className    = "name-col";
         tdScore.textContent = player.score;
 
         tr.appendChild(tdRank);
-        tr.appendChild(tdId);
+        tr.appendChild(tdAlly);
         tr.appendChild(tdName);
         tr.appendChild(tdScore);
         viewBody.appendChild(tr);
@@ -409,34 +509,39 @@
 
     function updateSortUI() {
       if (isSortedView) {
-        sortBtn.textContent = "依建立順序顯示";
+        sortBtn.textContent = "依加入順序顯示";
         sortNote.textContent = "目前：依分數由高到低排序";
       } else {
         sortBtn.textContent = "查看結果（由高到低排序）";
-        sortNote.textContent = "目前：依建立順序顯示";
+        sortNote.textContent = "目前：依加入順序顯示";
       }
     }
 
-    // 事件綁定
-    createBtn.addEventListener("click", () => {
-      isSortedView = false;
-      updateSortUI();
-      createPlayersFromCount();
-      writeState();
-    });
-
-    resetBtn.addEventListener("click", () => {
-      players.forEach((p) => (p.score = 0));
-      writeState();
-      renderControlArea();
-      renderView();
-    });
-
+    // 事件
     sortBtn.addEventListener("click", () => {
       isSortedView = !isSortedView;
       updateSortUI();
       writeState();
-      renderView();
+      renderViewTable();
+    });
+
+    resetScoreBtn.addEventListener("click", () => {
+      alliances.forEach(a => {
+        a.players.forEach(p => p.score = 0);
+      });
+      writeState();
+      renderAll();
+    });
+
+    changeRoomBtn.addEventListener("click", () => {
+      const newRoom = roomInput.value.trim() || "default";
+      if (newRoom === roomId) return;
+      roomId  = newRoom;
+      roomRef = ref(db, "rooms/" + roomId);
+      initDefaultAlliances();
+      writeState();
+      // 重新監聽新的房間（簡單起見重新載入頁面）
+      location.search = "?room=" + encodeURIComponent(roomId);
     });
   </script>
 </body>
