@@ -142,17 +142,18 @@
     }
     .buttons {
       display:flex;
-      flex-wrap:wrap;
+      flex-wrap:nowrap;     /* ❗ 不換行 */
       gap:3px;
       justify-content:center;
+      overflow-x:auto;      /* ❗ 螢幕太窄時允許水平捲動 */
     }
     .btn-plus,.btn-minus {
-      padding:2px 5px;
+      padding:2px 4px;
       font-size:11px;
       border-radius:6px;
       border:none;
       cursor:pointer;
-      min-width:30px;
+      min-width:28px;
     }
     .btn-plus  { background:#28a745;color:#fff; }
     .btn-minus { background:#dc3545;color:#fff; }
