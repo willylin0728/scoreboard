@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>記分板控制區（聯盟版 + Firebase 同步）</title>
+  <title>記分板控制區（六大聯盟 + Firebase 同步）</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -140,14 +140,17 @@
       font-weight:bold;
       font-size:16px;
     }
+
+    /* ▶ 手機友善：按鈕不換行、可縮小 */
     .buttons {
       display:flex;
-      flex-wrap:nowrap;     /* ❗ 不換行 */
+      flex-wrap:nowrap;        /* 不換行 */
       gap:3px;
       justify-content:center;
-      overflow-x:auto;      /* ❗ 螢幕太窄時允許水平捲動 */
+      overflow-x:auto;         /* 螢幕太窄時可左右滑動 */
     }
-    .btn-plus,.btn-minus {
+    .btn-plus,
+    .btn-minus {
       padding:2px 4px;
       font-size:11px;
       border-radius:6px;
@@ -157,6 +160,7 @@
     }
     .btn-plus  { background:#28a745;color:#fff; }
     .btn-minus { background:#dc3545;color:#fff; }
+
     .btn-del {
       background:#ff9800;
       color:#fff;
@@ -180,7 +184,7 @@
     }
     tbody tr:nth-child(odd){ background:#fff; }
     tbody tr:nth-child(even){ background:#f8f9fa; }
-    .rank-col{ width:40px; }
+    .rank-col{ width:70px; }
     .ally-col{ width:90px; }
     .name-col{ text-align:left; }
 
@@ -205,7 +209,8 @@
   <div class="container">
     <h1>記分板控制區（六大聯盟）</h1>
     <div class="subtitle">
-      房間名稱相同即可同步；每個聯盟可自由新增 / 刪除玩家。
+      房間名稱相同即可同步；每個聯盟可自由新增 / 刪除玩家。<br>
+      排名採「競賽排名 + Emoji」（🥇🥈🥉）。
     </div>
 
     <div class="top-bar">
@@ -216,7 +221,7 @@
     </div>
 
     <div class="layout">
-      <!-- 左側：六個聯盟控制區 -->
+      <!-- 左側：聯盟控制 -->
       <div class="panel">
         <div class="panel-title">聯盟與玩家管理</div>
         <div class="panel-subtitle">
@@ -225,7 +230,7 @@
         <div id="alliancesContainer"></div>
       </div>
 
-      <!-- 右側：總排行榜預覽 -->
+      <!-- 右側：總排行榜 -->
       <div class="panel">
         <div class="panel-title">總排行榜預覽</div>
         <div class="panel-subtitle">
@@ -317,6 +322,29 @@
       return maxId + 1;
     }
 
+    // 競賽排名：同分同名次（1,1,3…）
+    function assignCompetitionRank(sortedPlayers) {
+      let lastScore = null;
+      let lastRank  = 0;
+      return sortedPlayers.map((p, index) => {
+        if (p.score === lastScore) {
+          return { ...p, rank: lastRank };
+        } else {
+          lastRank  = index + 1;
+          lastScore = p.score;
+          return { ...p, rank: lastRank };
+        }
+      });
+    }
+
+    // 名次 Emoji
+    function rankEmoji(rank) {
+      if (rank === 1) return "🥇";
+      if (rank === 2) return "🥈";
+      if (rank === 3) return "🥉";
+      return "";
+    }
+
     // 監聽 Firebase
     function attachRoomListener() {
       onValue(roomRef, (snapshot) => {
@@ -327,7 +355,6 @@
           isSortedView = !!data.isSortedView;
           nextPlayerId = data.nextPlayerId || calcNextIdFromData();
         } else {
-          // 舊資料或空資料 → 初始化
           initDefaultAlliances();
           writeState();
         }
@@ -356,7 +383,7 @@
       updateSortUI();
     }
 
-    // 渲染左側聯盟控制區
+    // 左側聯盟控制
     function renderAlliancesControl() {
       alliancesContainer.innerHTML = "";
       alliances.forEach((ally, allyIndex) => {
@@ -388,7 +415,7 @@
           };
           alliances[allyIndex].players.push(newPlayer);
           writeState();
-          renderAll(); // 重新畫，更新人數
+          renderAll();
         });
 
         header.appendChild(nameInput);
@@ -419,7 +446,6 @@
 
           const btnArea = document.createElement("div");
           btnArea.className = "buttons";
-
           const deltas = [-3,-2,-1,1,2,3];
           deltas.forEach(d => {
             const btn = document.createElement("button");
@@ -449,7 +475,6 @@
           row.appendChild(scoreBox);
           row.appendChild(btnArea);
           row.appendChild(delBtn);
-
           body.appendChild(row);
         });
 
@@ -459,11 +484,10 @@
       });
     }
 
-    // 渲染右側排行榜
+    // 右側排行榜
     function renderViewTable() {
       viewBody.innerHTML = "";
 
-      // 把六個聯盟展平成一個陣列
       let allPlayers = [];
       alliances.forEach(ally => {
         ally.players.forEach(p => {
@@ -478,23 +502,29 @@
 
       let dataToShow;
       if (isSortedView) {
-        dataToShow = [...allPlayers].sort((a,b) => {
+        let sorted = [...allPlayers].sort((a,b) => {
           if (b.score !== a.score) return b.score - a.score;
           return a.id - b.id;
         });
+        dataToShow = assignCompetitionRank(sorted);
       } else {
-        dataToShow = allPlayers; // 原始加入順序
+        dataToShow = allPlayers.map((p, idx) => ({
+          ...p,
+          rank: idx + 1
+        }));
       }
 
-      dataToShow.forEach((player, idx) => {
+      dataToShow.forEach(player => {
         const tr = document.createElement("tr");
 
-        const tdRank = document.createElement("td");
-        const tdAlly = document.createElement("td");
-        const tdName = document.createElement("td");
-        const tdScore= document.createElement("td");
+        const tdRank  = document.createElement("td");
+        const tdAlly  = document.createElement("td");
+        const tdName  = document.createElement("td");
+        const tdScore = document.createElement("td");
 
-        tdRank.textContent  = idx + 1;
+        const emoji = rankEmoji(player.rank);
+        tdRank.textContent  = emoji ? `${player.rank} ${emoji}` : player.rank;
+
         tdAlly.textContent  = player.allianceName;
         tdName.textContent  = player.name;
         tdName.className    = "name-col";
@@ -511,10 +541,10 @@
     function updateSortUI() {
       if (isSortedView) {
         sortBtn.textContent = "依加入順序顯示";
-        sortNote.textContent = "目前：依分數由高到低排序";
+        sortNote.textContent = "目前：依分數由高到低排序（競賽排名 + Emoji）";
       } else {
         sortBtn.textContent = "查看結果（由高到低排序）";
-        sortNote.textContent = "目前：依加入順序顯示";
+        sortNote.textContent = "目前：依加入順序顯示（名次為加入順序）";
       }
     }
 
@@ -541,7 +571,6 @@
       roomRef = ref(db, "rooms/" + roomId);
       initDefaultAlliances();
       writeState();
-      // 重新監聽新的房間（簡單起見重新載入頁面）
       location.search = "?room=" + encodeURIComponent(roomId);
     });
   </script>

@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>記分板觀戰頁（六大聯盟 + Firebase 同步）</title>
+  <title>記分板觀戰頁（六大聯盟 + Emoji 排名）</title>
   <style>
     body{
       font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -47,7 +47,7 @@
     }
     tbody tr:nth-child(odd){ background:#1b1b1b; }
     tbody tr:nth-child(even){ background:#252525; }
-    .rank-col{ width:60px; }
+    .rank-col{ width:80px; }
     .ally-col{ width:100px; }
     .name-col{ text-align:left; }
 
@@ -95,7 +95,7 @@
 
     <div class="toolbar-bottom">
       <button class="btn" id="sortBtn">查看結果（由高到低排序）</button>
-      <span class="small-note" id="sortNote">目前：依加入順序顯示</span>
+      <span class="small-note" id="sortNote">目前：依加入順序顯示（本機排序）</span>
     </div>
   </div>
 
@@ -103,7 +103,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-    // 貼上與 control.html 相同的 firebaseConfig
+    // 與 control.html 完全相同的 firebaseConfig
     const firebaseConfig = {
       apiKey: "AIzaSyA1bn1o--CZs8R9z66yWja5jtFgWgsYcjc",
       authDomain: "scoreboard-project-3c57c.firebaseapp.com",
@@ -132,23 +132,32 @@
 
     const roomRef = ref(db, "rooms/" + roomId);
 
-    onValue(roomRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data && Array.isArray(data.alliances)) {
-        alliances    = data.alliances;
-        isSortedView = !!data.isSortedView;
-        updateSortUI();
-        renderView();
-      } else {
-        alliances = [];
-        renderView();
-      }
-    });
+    // 競賽排名
+    function assignCompetitionRank(sortedPlayers) {
+      let lastScore = null;
+      let lastRank  = 0;
+      return sortedPlayers.map((p, index) => {
+        if (p.score === lastScore) {
+          return { ...p, rank: lastRank };
+        } else {
+          lastRank  = index + 1;
+          lastScore = p.score;
+          return { ...p, rank: lastRank };
+        }
+      });
+    }
+
+    function rankEmoji(rank) {
+      if (rank === 1) return "🥇";
+      if (rank === 2) return "🥈";
+      if (rank === 3) return "🥉";
+      return "";
+    }
 
     function flattenPlayers() {
       const list = [];
       alliances.forEach(ally => {
-        ally.players?.forEach(p => {
+        (ally.players || []).forEach(p => {
           list.push({
             id: p.id,
             name: p.name,
@@ -160,28 +169,45 @@
       return list;
     }
 
+    onValue(roomRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && Array.isArray(data.alliances)) {
+        alliances = data.alliances;
+        renderView();
+      } else {
+        alliances = [];
+        renderView();
+      }
+    });
+
     function renderView() {
       const allPlayers = flattenPlayers();
       viewBody.innerHTML = "";
 
       let dataToShow;
       if (isSortedView) {
-        dataToShow = [...allPlayers].sort((a,b) => {
+        let sorted = [...allPlayers].sort((a,b) => {
           if (b.score !== a.score) return b.score - a.score;
           return a.id - b.id;
         });
+        dataToShow = assignCompetitionRank(sorted);
       } else {
-        dataToShow = allPlayers;
+        dataToShow = allPlayers.map((p, idx) => ({
+          ...p,
+          rank: idx + 1
+        }));
       }
 
-      dataToShow.forEach((p, idx) => {
+      dataToShow.forEach(p => {
         const tr  = document.createElement("tr");
         const tdR = document.createElement("td");
         const tdA = document.createElement("td");
         const tdN = document.createElement("td");
         const tdS = document.createElement("td");
 
-        tdR.textContent = idx + 1;
+        const emoji = rankEmoji(p.rank);
+        tdR.textContent = emoji ? `${p.rank} ${emoji}` : p.rank;
+
         tdA.textContent = p.allianceName;
         tdN.textContent = p.name;
         tdN.className   = "name-col";
@@ -197,20 +223,21 @@
 
     function updateSortUI() {
       if (isSortedView) {
-        sortBtn.textContent = "依加入順序顯示（本機）";
-        sortNote.textContent = "目前：依分數由高到低排序（僅改顯示，不影響控制端設定）";
+        sortBtn.textContent = "依加入順序顯示";
+        sortNote.textContent = "目前：依分數由高到低排序（本機顯示用）";
       } else {
         sortBtn.textContent = "查看結果（由高到低排序）";
-        sortNote.textContent = "目前：依加入順序顯示";
+        sortNote.textContent = "目前：依加入順序顯示（名次為加入順序）";
       }
     }
 
-    // 觀戰頁自己的排序只影響本機顯示，不會寫回 Firebase
     sortBtn.addEventListener("click", () => {
       isSortedView = !isSortedView;
       updateSortUI();
       renderView();
     });
+
+    updateSortUI();
   </script>
 </body>
 </html>
