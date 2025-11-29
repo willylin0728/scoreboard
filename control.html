@@ -31,13 +31,24 @@
       font-size:18px;
       font-weight:500;
       color:#666;
-      margin:0 0 10px;
+      margin:0 0 6px;
     }
     .subtitle-note {
       text-align:center;
       font-size:13px;
       color:#777;
-      margin-bottom:16px;
+      margin-bottom:12px;
+    }
+
+    /* === 可選：Logo 區塊 === */
+    .logo-wrapper{
+      display:flex;
+      justify-content:center;
+      margin-bottom:6px;
+    }
+    .logo{
+      height:60px;          /* 你可以自行調整大小 */
+      object-fit:contain;
     }
 
     .top-bar {
@@ -218,6 +229,10 @@
     .ally-col{ width:90px; }
     .name-col{ text-align:left; }
 
+    .rank-emoji{
+      font-size:18px;
+    }
+
     .toolbar-bottom{
       display:flex;
       justify-content:flex-start;
@@ -237,11 +252,16 @@
 </head>
 <body>
   <div class="container">
+    <!-- 如果要顯示圖片，就把下面這段 img 的 src 換成你的圖片路徑 -->
+    <!-- <div class="logo-wrapper">
+      <img src="logo.png" alt="41數學營 Logo" class="logo">
+    </div> -->
+
     <h1 class="title-main">41數學營 個人挑戰賽</h1>
     <div class="title-sub">控制端</div>
     <div class="subtitle-note">
       房間名稱相同即可同步；可新增 / 刪除聯盟與玩家。<br>
-      排名採「競賽排名 + Emoji」（🥇🥈🥉），觀戰區僅顯示 Emoji。
+      排名採「競賽排名 + Emoji」（🥇🥈🥉），前 3 名以 Emoji 顯示，其餘顯示名次數字。
     </div>
 
     <div class="top-bar">
@@ -265,7 +285,7 @@
       <div class="panel">
         <div class="panel-title">總排行榜預覽</div>
         <div class="panel-subtitle">
-          view.html 即時觀戰區會顯示與此區相同的內容。
+          即時觀戰區會顯示與此區相同的內容。
         </div>
         <table>
           <thead>
@@ -287,7 +307,6 @@
     </div>
   </div>
 
-  <!-- Firebase + 邏輯 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -302,6 +321,7 @@
       appId: "1:927335969684:web:7f3be6f470301def8f9581",
       measurementId: "G-0ZXW9PQKVV"
     };
+
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
 
@@ -605,7 +625,14 @@
         const tdScore = document.createElement("td");
 
         const emoji = rankEmoji(player.rank);
-        tdRank.textContent  = emoji ? emoji : "";   // ✅ 只顯示 Emoji
+        if (emoji) {
+          tdRank.textContent = emoji;       // 前三名顯示 Emoji
+          tdRank.className   = "rank-emoji";
+        } else {
+          tdRank.textContent = player.rank; // 其他顯示名次數字
+          tdRank.className   = "";
+        }
+
         tdAlly.textContent  = player.allianceName;
         tdName.textContent  = player.name;
         tdName.className    = "name-col";
@@ -622,10 +649,10 @@
     function updateSortUI() {
       if (isSortedView) {
         sortBtn.textContent = "依加入順序顯示";
-        sortNote.textContent = "目前：依分數由高到低排序（競賽排名 + Emoji）";
+        sortNote.textContent = "目前：依分數由高到低排序（競賽排名，前三名顯示 Emoji）";
       } else {
         sortBtn.textContent = "查看結果（由高到低排序）";
-        sortNote.textContent = "目前：依加入順序顯示（名次為加入順序）";
+        sortNote.textContent = "目前：依加入順序顯示（名次為加入順序，前三名顯示 Emoji）";
       }
     }
 

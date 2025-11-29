@@ -251,8 +251,13 @@
         const tdS = document.createElement("td");
 
         const emoji = rankEmoji(p.rank);
-        tdR.textContent = emoji ? emoji : "";    // ✅ 只顯示 Emoji
-        tdR.className   = "rank-emoji";
+        if (emoji) {
+          tdR.textContent = emoji;       // 前三名顯示 Emoji
+          tdR.className   = "rank-emoji";
+        } else {
+          tdR.textContent = p.rank;      // 其他名次顯示數字
+          tdR.className   = "";
+        }
 
         tdA.textContent = p.allianceName;
         tdN.textContent = p.name;
@@ -270,10 +275,10 @@
     function updateSortUI() {
       if (isSortedView) {
         sortBtn.textContent = "依加入順序顯示";
-        sortNote.textContent = "目前：依分數由高到低排序（競賽排名 + Emoji）";
+        sortNote.textContent = "目前：依分數由高到低排序（競賽排名，前三名顯示 Emoji）";
       } else {
         sortBtn.textContent = "查看結果（由高到低排序）";
-        sortNote.textContent = "目前：依加入順序顯示（名次為加入順序，僅顯示前三名 Emoji）";
+        sortNote.textContent = "目前：依加入順序顯示（名次為加入順序，前三名顯示 Emoji）";
       }
     }
 
