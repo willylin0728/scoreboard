@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>記分板控制區（六大聯盟 + Firebase 同步）</title>
+  <title>記分板控制區（六大聯盟，可增至八個）</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -55,10 +55,11 @@
       white-space: nowrap;
     }
     .btn-primary { background:#007bff;color:#fff; }
-    .btn-reset { background:#6c757d;color:#fff; }
-    .btn-sort  { background:#17a2b8;color:#fff; }
-    .btn-small { padding:4px 8px;font-size:12px; }
-    .btn:hover { opacity:.9; }
+    .btn-reset   { background:#6c757d;color:#fff; }
+    .btn-sort    { background:#17a2b8;color:#fff; }
+    .btn-small   { padding:4px 8px;font-size:12px; }
+    .btn:hover   { opacity:.9; }
+
     .layout {
       display:grid;
       grid-template-columns: 1.4fr 1fr;
@@ -80,6 +81,16 @@
       font-size:12px;
       color:#777;
       margin-bottom:10px;
+    }
+
+    .alliances-toolbar {
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      margin-bottom:8px;
+      gap:8px;
+      font-size:12px;
+      color:#555;
     }
 
     .alliance-block {
@@ -144,10 +155,10 @@
     /* ▶ 手機友善：按鈕不換行、可縮小 */
     .buttons {
       display:flex;
-      flex-wrap:nowrap;        /* 不換行 */
+      flex-wrap:nowrap;
       gap:3px;
       justify-content:center;
-      overflow-x:auto;         /* 螢幕太窄時可左右滑動 */
+      overflow-x:auto;
     }
     .btn-plus,
     .btn-minus {
@@ -170,6 +181,16 @@
       padding:2px 6px;
       font-size:12px;
     }
+    .btn-del-alliance{
+      background:#dc3545;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      cursor:pointer;
+      padding:4px 8px;
+      font-size:11px;
+      white-space:nowrap;
+    }
 
     table {
       width:100%;
@@ -184,7 +205,7 @@
     }
     tbody tr:nth-child(odd){ background:#fff; }
     tbody tr:nth-child(even){ background:#f8f9fa; }
-    .rank-col{ width:70px; }
+    .rank-col{ width:80px; }
     .ally-col{ width:90px; }
     .name-col{ text-align:left; }
 
@@ -207,9 +228,9 @@
 </head>
 <body>
   <div class="container">
-    <h1>記分板控制區（六大聯盟）</h1>
+    <h1>記分板控制區（六大聯盟，可增至八個）</h1>
     <div class="subtitle">
-      房間名稱相同即可同步；每個聯盟可自由新增 / 刪除玩家。<br>
+      房間名稱相同即可同步；可新增 / 刪除聯盟與玩家。<br>
       排名採「競賽排名 + Emoji」（🥇🥈🥉）。
     </div>
 
@@ -225,7 +246,7 @@
       <div class="panel">
         <div class="panel-title">聯盟與玩家管理</div>
         <div class="panel-subtitle">
-          每個聯盟可改名，按「新增玩家」加入，🗑 刪除該玩家。
+          預設建立 6 個聯盟，可再新增至最多 8 個；刪除聯盟會連同其玩家一起刪除。
         </div>
         <div id="alliancesContainer"></div>
       </div>
@@ -250,7 +271,7 @@
 
         <div class="toolbar-bottom">
           <button class="btn btn-sort" id="sortBtn">查看結果（由高到低排序）</button>
-          <span class="small-note" id="sortNote">目前：依加入順序顯示</span>
+          <span class="small-note" id="sortNote">目前：依加入順序顯示（名次為加入順序）</span>
         </div>
       </div>
     </div>
@@ -292,19 +313,21 @@
     let roomRef     = ref(db, "rooms/" + roomId);
 
     // 狀態
-    let alliances    = []; // [{id,name,players:[{id,name,score}]}]
-    let isSortedView = false;
-    let nextPlayerId = 1;
-    let isWriting    = false;
-    let hasInitial   = false;
+    const MAX_ALLIANCES = 8;
+    let alliances       = []; // [{id,name,players:[{id,name,score}]}]
+    let isSortedView    = false;
+    let nextPlayerId    = 1;
+    let nextAllianceId  = 1;
+    let isWriting       = false;
 
-    // 建立預設六大聯盟
+    // 建立預設 6 聯盟
     function initDefaultAlliances() {
       alliances = [];
       const names = ["第一聯盟","第二聯盟","第三聯盟","第四聯盟","第五聯盟","第六聯盟"];
+      nextAllianceId = 1;
       for (let i = 0; i < 6; i++) {
         alliances.push({
-          id: i + 1,
+          id: nextAllianceId++,
           name: names[i],
           players: []
         });
@@ -312,12 +335,20 @@
       nextPlayerId = 1;
     }
 
-    function calcNextIdFromData() {
+    function calcNextPlayerIdFromData() {
       let maxId = 0;
       alliances.forEach(a => {
         a.players.forEach(p => {
           if (typeof p.id === "number" && p.id > maxId) maxId = p.id;
         });
+      });
+      return maxId + 1;
+    }
+
+    function calcNextAllianceIdFromData() {
+      let maxId = 0;
+      alliances.forEach(a => {
+        if (typeof a.id === "number" && a.id > maxId) maxId = a.id;
       });
       return maxId + 1;
     }
@@ -351,14 +382,14 @@
         if (isWriting) return;
         const data = snapshot.val();
         if (data && Array.isArray(data.alliances)) {
-          alliances    = data.alliances;
-          isSortedView = !!data.isSortedView;
-          nextPlayerId = data.nextPlayerId || calcNextIdFromData();
+          alliances      = data.alliances;
+          isSortedView   = !!data.isSortedView;
+          nextPlayerId   = data.nextPlayerId   || calcNextPlayerIdFromData();
+          nextAllianceId = data.nextAllianceId || calcNextAllianceIdFromData();
         } else {
           initDefaultAlliances();
           writeState();
         }
-        hasInitial = true;
         renderAll();
       });
     }
@@ -369,7 +400,8 @@
       const data = {
         alliances,
         isSortedView,
-        nextPlayerId
+        nextPlayerId,
+        nextAllianceId
       };
       isWriting = true;
       set(roomRef, data).finally(() => {
@@ -386,6 +418,37 @@
     // 左側聯盟控制
     function renderAlliancesControl() {
       alliancesContainer.innerHTML = "";
+
+      // 上方工具列：新增聯盟
+      const toolbar = document.createElement("div");
+      toolbar.className = "alliances-toolbar";
+
+      const info = document.createElement("span");
+      info.textContent = `目前：${alliances.length} 個聯盟（最多 ${MAX_ALLIANCES} 個）`;
+
+      const addAllianceBtn = document.createElement("button");
+      addAllianceBtn.className = "btn btn-primary btn-small";
+      addAllianceBtn.textContent = "新增聯盟";
+      addAllianceBtn.addEventListener("click", () => {
+        if (alliances.length >= MAX_ALLIANCES) {
+          alert(`最多只能有 ${MAX_ALLIANCES} 個聯盟。`);
+          return;
+        }
+        const newName = `第${alliances.length + 1}聯盟`;
+        alliances.push({
+          id: nextAllianceId++,
+          name: newName,
+          players: []
+        });
+        writeState();
+        renderAll();
+      });
+
+      toolbar.appendChild(info);
+      toolbar.appendChild(addAllianceBtn);
+      alliancesContainer.appendChild(toolbar);
+
+      // 各聯盟區塊
       alliances.forEach((ally, allyIndex) => {
         const block = document.createElement("div");
         block.className = "alliance-block";
@@ -396,7 +459,7 @@
         const nameInput = document.createElement("input");
         nameInput.value = ally.name;
         nameInput.addEventListener("input", () => {
-          alliances[allyIndex].name = nameInput.value || `第${ally.id}聯盟`;
+          alliances[allyIndex].name = nameInput.value || `聯盟 ${ally.id}`;
           writeState();
           renderViewTable();
         });
@@ -418,9 +481,22 @@
           renderAll();
         });
 
+        const delAllianceBtn = document.createElement("button");
+        delAllianceBtn.className = "btn-del-alliance";
+        delAllianceBtn.textContent = "刪除聯盟";
+        delAllianceBtn.addEventListener("click", () => {
+          const name = alliances[allyIndex].name || `聯盟 ${alliances[allyIndex].id}`;
+          const ok = confirm(`確定要刪除「${name}」以及該聯盟底下所有玩家嗎？\n（按「確定」刪除，按「取消」返回）`);
+          if (!ok) return;
+          alliances.splice(allyIndex, 1);
+          writeState();
+          renderAll();
+        });
+
         header.appendChild(nameInput);
         header.appendChild(countSpan);
         header.appendChild(addBtn);
+        header.appendChild(delAllianceBtn);
 
         const body = document.createElement("div");
         body.className = "alliance-body";
@@ -524,7 +600,6 @@
 
         const emoji = rankEmoji(player.rank);
         tdRank.textContent  = emoji ? `${player.rank} ${emoji}` : player.rank;
-
         tdAlly.textContent  = player.allianceName;
         tdName.textContent  = player.name;
         tdName.className    = "name-col";
