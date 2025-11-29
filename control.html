@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>記分板控制區（Firebase 同步）</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      background: #ffffff;
+      max-width: 960px;
+      width: 100%;
+      padding: 20px 24px 28px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 24px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 16px;
+    }
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      justify-content: center;
+    }
+    .top-bar label {
+      font-size: 14px;
+    }
+    .top-bar input[type="number"],
+    .top-bar input[type="text"] {
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      font-size: 14px;
+    }
+    .top-bar input[type="number"] {
+      width: 80px;
+    }
+    .btn {
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-reset { background: #6c757d; color: white; }
+    .btn-sort { background: #17a2b8; color: white; }
+    .btn:hover { opacity: 0.9; }
+    .layout {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .panel {
+      background: #fafafa;
+      border-radius: 12px;
+      padding: 12px 14px 16px;
+      border: 1px solid #e0e0e0;
+    }
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .panel-subtitle {
+      font-size: 12px;
+      color: #777;
+      margin-bottom: 10px;
+    }
+    #controlArea .player-row {
+      display: grid;
+      grid-template-columns: 1.3fr 0.5fr 1.7fr;
+      gap: 6px;
+      align-items: center;
+      padding: 4px 4px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+    }
+    #controlArea .player-row:nth-child(odd) { background: #ffffff; }
+    #controlArea .player-row:nth-child(even) { background: #f0f0f0; }
+    .name-input {
+      width: 100%;
+      padding: 5px 7px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+    .name-input:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+    }
+    .score-box {
+      text-align: center;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .btn-plus, .btn-minus {
+      padding: 3px 6px;
+      font-size: 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      min-width: 34px;
+    }
+    .btn-plus { background: #28a745; color: white; }
+    .btn-minus { background: #dc3545; color: white; }
+    .btn-plus:hover, .btn-minus:hover { opacity: 0.9; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead { background: #e9ecef; }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #ddd;
+      text-align: center;
+    }
+    tbody tr:nth-child(odd) { background: #ffffff; }
+    tbody tr:nth-child(even) { background: #f8f9fa; }
+    .rank-col { width: 40px; }
+    .name-col { text-align: left; }
+    .toolbar-bottom {
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      align-items: center;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .small-note {
+      font-size: 12px;
+      color: #777;
+    }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>記分板控制區（Firebase 同步）</h1>
+    <div class="subtitle">
+      這頁可以調整分數，同步寫入 Firebase。<br>
+      觀戰頁請用 <code>view.html?room=同一個房名</code>。
+    </div>
+
+    <div class="top-bar">
+      <label>房間名稱(room)：</label>
+      <input type="text" id="roomInput" value="" placeholder="例如: classA" />
+      <label for="playerCount">玩家人數：</label>
+      <input type="number" id="playerCount" min="1" max="50" value="10" />
+      <button class="btn btn-primary" id="createBtn">建立玩家</button>
+      <button class="btn btn-reset" id="resetBtn">全部分數歸零</button>
+    </div>
+
+    <div class="layout">
+      <!-- 左邊控制 -->
+      <div class="panel">
+        <div class="panel-title">控制區</div>
+        <div class="panel-subtitle">名字可改，按 -3/-2/-1/+1/+2/+3 調分數。</div>
+        <div id="controlArea"></div>
+      </div>
+
+      <!-- 右邊觀戰（同頁預覽） -->
+      <div class="panel">
+        <div class="panel-title">觀戰預覽（與 view.html 顯示內容相同）</div>
+        <div class="panel-subtitle">實際給觀眾請用獨立的 view.html。</div>
+
+        <table>
+          <thead>
+            <tr>
+              <th class="rank-col">名次</th>
+              <th>編號</th>
+              <th class="name-col">名字</th>
+              <th>分數</th>
+            </tr>
+          </thead>
+          <tbody id="viewBody"></tbody>
+        </table>
+
+        <div class="toolbar-bottom">
+          <button class="btn btn-sort" id="sortBtn">查看結果（由高到低排序）</button>
+          <span class="small-note" id="sortNote">目前：依建立順序顯示</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase + 邏輯 -->
+  <script type="module">
+    // ===== 匯入 Firebase SDK（使用 CDN 模組版） =====
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    // ===== 在這裡貼上你的 firebaseConfig =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyA1bn1o--CZs8R9z66yWja5jtFgWgsYcjc",
+      authDomain: "scoreboard-project-3c57c.firebaseapp.com",
+      projectId: "scoreboard-project-3c57c",
+      storageBucket: "scoreboard-project-3c57c.firebasestorage.app",
+      messagingSenderId: "927335969684",
+      appId: "1:927335969684:web:7f3be6f470301def8f9581",
+      measurementId: "G-0ZXW9PQKVV"
+    };
+
+    // ===== 初始化 Firebase =====
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ===== DOM 元素 =====
+    const controlArea = document.getElementById("controlArea");
+    const viewBody = document.getElementById("viewBody");
+    const playerCountInput = document.getElementById("playerCount");
+    const createBtn = document.getElementById("createBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const sortBtn = document.getElementById("sortBtn");
+    const sortNote = document.getElementById("sortNote");
+    const roomInput = document.getElementById("roomInput");
+
+    // 房間名稱：網址 ?room=xxx 優先，其次 input 的值，預設 "default"
+    const urlParams = new URLSearchParams(location.search);
+    const urlRoom = urlParams.get("room");
+    roomInput.value = urlRoom || "default";
+    let roomId = roomInput.value.trim() || "default";
+    let roomRef = ref(db, "rooms/" + roomId);
+
+    let players = [];
+    let isSortedView = false;
+    let hasInitialData = false;
+    let isWriting = false; // 避免自己寫入再觸發時重複處理
+
+    // 監聽房間資料變化
+    onValue(roomRef, (snapshot) => {
+      if (isWriting) return; // 自己剛寫入時略過一次
+      const data = snapshot.val();
+      if (data && Array.isArray(data.players)) {
+        players = data.players;
+        isSortedView = !!data.isSortedView;
+        hasInitialData = true;
+        playerCountInput.value = players.length || 10;
+        renderControlArea();
+        updateSortUI();
+        renderView();
+      } else {
+        if (!hasInitialData) {
+          // 第一次沒資料 → 建立預設玩家後寫入
+          createPlayersFromCount();
+          writeState();
+          hasInitialData = true;
+        }
+      }
+    });
+
+    // 將目前狀態寫入 Firebase
+    function writeState() {
+      const data = {
+        players: players,
+        isSortedView: isSortedView
+      };
+      isWriting = true;
+      set(roomRef, data).finally(() => {
+        isWriting = false;
+      });
+    }
+
+    // 切換房間（若你中途改房名）
+    roomInput.addEventListener("change", () => {
+      const newRoom = roomInput.value.trim() || "default";
+      if (newRoom === roomId) return;
+      roomId = newRoom;
+      roomRef = ref(db, "rooms/" + roomId);
+      // 不強制清除舊資料，由 onValue 重新接
+      hasInitialData = false;
+    });
+
+    // 建立玩家
+    function createPlayersFromCount() {
+      let count = parseInt(playerCountInput.value, 10);
+      if (isNaN(count) || count <= 0) {
+        count = 10;
+        playerCountInput.value = 10;
+      }
+      if (count > 50) {
+        count = 50;
+        playerCountInput.value = 50;
+      }
+
+      players = [];
+      for (let i = 0; i < count; i++) {
+        players.push({
+          id: i + 1,
+          name: "玩家 " + (i + 1),
+          score: 0
+        });
+      }
+      renderControlArea();
+      renderView();
+    }
+
+    // 渲染控制區
+    function renderControlArea() {
+      controlArea.innerHTML = "";
+      players.forEach((player, index) => {
+        const row = document.createElement("div");
+        row.className = "player-row";
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.className = "name-input";
+        nameInput.value = player.name;
+        nameInput.placeholder = "玩家 " + player.id;
+        nameInput.addEventListener("input", function () {
+          players[index].name = nameInput.value || ("玩家 " + player.id);
+          writeState();
+          renderView();
+        });
+
+        const scoreBox = document.createElement("div");
+        scoreBox.className = "score-box";
+        scoreBox.textContent = player.score;
+
+        const btnArea = document.createElement("div");
+        btnArea.className = "buttons";
+
+        const deltas = [-3, -2, -1, 1, 2, 3];
+        deltas.forEach((d) => {
+          const btn = document.createElement("button");
+          btn.className = d > 0 ? "btn-plus" : "btn-minus";
+          btn.textContent = (d > 0 ? "+" : "") + d;
+          btn.addEventListener("click", function () {
+            players[index].score += d;
+            scoreBox.textContent = players[index].score;
+            writeState();
+            renderView();
+          });
+          btnArea.appendChild(btn);
+        });
+
+        row.appendChild(nameInput);
+        row.appendChild(scoreBox);
+        row.appendChild(btnArea);
+        controlArea.appendChild(row);
+      });
+    }
+
+    // 渲染觀戰表格
+    function renderView() {
+      viewBody.innerHTML = "";
+      let dataToShow;
+      if (isSortedView) {
+        dataToShow = [...players].sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.id - b.id;
+        });
+      } else {
+        dataToShow = players;
+      }
+
+      dataToShow.forEach((player, idx) => {
+        const tr = document.createElement("tr");
+        const tdRank = document.createElement("td");
+        const tdId = document.createElement("td");
+        const tdName = document.createElement("td");
+        const tdScore = document.createElement("td");
+
+        tdRank.textContent = idx + 1;
+        tdId.textContent = player.id;
+        tdName.textContent = player.name;
+        tdName.className = "name-col";
+        tdScore.textContent = player.score;
+
+        tr.appendChild(tdRank);
+        tr.appendChild(tdId);
+        tr.appendChild(tdName);
+        tr.appendChild(tdScore);
+        viewBody.appendChild(tr);
+      });
+    }
+
+    function updateSortUI() {
+      if (isSortedView) {
+        sortBtn.textContent = "依建立順序顯示";
+        sortNote.textContent = "目前：依分數由高到低排序";
+      } else {
+        sortBtn.textContent = "查看結果（由高到低排序）";
+        sortNote.textContent = "目前：依建立順序顯示";
+      }
+    }
+
+    // 事件綁定
+    createBtn.addEventListener("click", () => {
+      isSortedView = false;
+      updateSortUI();
+      createPlayersFromCount();
+      writeState();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      players.forEach((p) => (p.score = 0));
+      writeState();
+      renderControlArea();
+      renderView();
+    });
+
+    sortBtn.addEventListener("click", () => {
+      isSortedView = !isSortedView;
+      updateSortUI();
+      writeState();
+      renderView();
+    });
+  </script>
+</body>
+</html>

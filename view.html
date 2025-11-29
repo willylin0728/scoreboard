@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>記分板觀戰頁（Firebase 同步）</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      background: #ffffff;
+      max-width: 600px;
+      width: 100%;
+      padding: 20px 24px 28px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 22px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    thead { background: #e9ecef; }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #ddd;
+      text-align: center;
+    }
+    tbody tr:nth-child(odd) { background: #ffffff; }
+    tbody tr:nth-child(even) { background: #f8f9fa; }
+    .rank-col { width: 50px; }
+    .name-col { text-align: left; }
+    .toolbar-bottom {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      align-items: center;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      background: #17a2b8;
+      color: white;
+    }
+    .btn:hover { opacity: 0.9; }
+    .small-note {
+      font-size: 12px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>記分板觀戰頁</h1>
+    <div class="subtitle" id="subtitle">
+      讀取中…
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="rank-col">名次</th>
+          <th>編號</th>
+          <th class="name-col">名字</th>
+          <th>分數</th>
+        </tr>
+      </thead>
+      <tbody id="viewBody"></tbody>
+    </table>
+
+    <div class="toolbar-bottom">
+      <button class="btn" id="sortBtn">查看結果（由高到低排序）</button>
+      <span class="small-note" id="sortNote">目前：依建立順序顯示</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    // 在這裡貼上你的 firebaseConfig
+    const firebaseConfig = {
+      apiKey: "AIzaSyA1bn1o--CZs8R9z66yWja5jtFgWgsYcjc",
+      authDomain: "scoreboard-project-3c57c.firebaseapp.com",
+      projectId: "scoreboard-project-3c57c",
+      storageBucket: "scoreboard-project-3c57c.firebasestorage.app",
+      messagingSenderId: "927335969684",
+      appId: "1:927335969684:web:7f3be6f470301def8f9581",
+      measurementId: "G-0ZXW9PQKVV"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const urlParams = new URLSearchParams(location.search);
+    const roomId = urlParams.get("room") || "default";
+
+    const subtitle = document.getElementById("subtitle");
+    const viewBody = document.getElementById("viewBody");
+    const sortBtn = document.getElementById("sortBtn");
+    const sortNote = document.getElementById("sortNote");
+
+    subtitle.textContent = `房間：${roomId}（由控制頁同步資料）`;
+
+    let players = [];
+    let isSortedView = false;
+
+    const roomRef = ref(db, "rooms/" + roomId);
+
+    onValue(roomRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && Array.isArray(data.players)) {
+        players = data.players;
+        isSortedView = !!data.isSortedView;
+        updateSortUI();
+        renderView();
+      } else {
+        players = [];
+        renderView();
+      }
+    });
+
+    function renderView() {
+      viewBody.innerHTML = "";
+      let dataToShow;
+      if (isSortedView) {
+        dataToShow = [...players].sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.id - b.id;
+        });
+      } else {
+        dataToShow = players;
+      }
+
+      dataToShow.forEach((player, idx) => {
+        const tr = document.createElement("tr");
+        const tdRank = document.createElement("td");
+        const tdId = document.createElement("td");
+        const tdName = document.createElement("td");
+        const tdScore = document.createElement("td");
+
+        tdRank.textContent = idx + 1;
+        tdId.textContent = player.id;
+        tdName.textContent = player.name;
+        tdName.className = "name-col";
+        tdScore.textContent = player.score;
+
+        tr.appendChild(tdRank);
+        tr.appendChild(tdId);
+        tr.appendChild(tdName);
+        tr.appendChild(tdScore);
+        viewBody.appendChild(tr);
+      });
+    }
+
+    function updateSortUI() {
+      if (isSortedView) {
+        sortBtn.textContent = "依建立順序顯示";
+        sortNote.textContent = "目前：依分數由高到低排序（跟控制頁設定一致）";
+      } else {
+        sortBtn.textContent = "查看結果（由高到低排序）";
+        sortNote.textContent = "目前：依建立順序顯示（跟控制頁設定一致）";
+      }
+    }
+
+    // 觀戰頁本身不改資料，只是「本地顯示排序方式」
+    sortBtn.addEventListener("click", () => {
+      isSortedView = !isSortedView;
+      updateSortUI();
+      renderView();
+    });
+  </script>
+</body>
+</html>
