@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>記分板控制區（六大聯盟，可增至八個）</title>
+  <title>41數學營 個人挑戰賽 – 控制端</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -20,17 +20,26 @@
       border-radius: 16px;
       box-shadow: 0 10px 25px rgba(0,0,0,.08);
     }
-    h1 {
-      text-align: center;
-      margin: 0 0 8px;
-      font-size: 24px;
+    .title-main {
+      text-align:center;
+      font-size:28px;
+      font-weight:700;
+      margin:4px 0 2px;
     }
-    .subtitle {
-      text-align: center;
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 16px;
+    .title-sub {
+      text-align:center;
+      font-size:18px;
+      font-weight:500;
+      color:#666;
+      margin:0 0 10px;
     }
+    .subtitle-note {
+      text-align:center;
+      font-size:13px;
+      color:#777;
+      margin-bottom:16px;
+    }
+
     .top-bar {
       display: flex;
       flex-wrap: wrap;
@@ -152,6 +161,7 @@
       font-size:16px;
     }
 
+    /* 手機友善：按鈕不換行、可縮小 */
     .buttons {
       display:flex;
       flex-wrap:nowrap;
@@ -227,10 +237,11 @@
 </head>
 <body>
   <div class="container">
-    <h1>記分板控制區（六大聯盟，可增至八個）</h1>
-    <div class="subtitle">
+    <h1 class="title-main">41數學營 個人挑戰賽</h1>
+    <div class="title-sub">控制端</div>
+    <div class="subtitle-note">
       房間名稱相同即可同步；可新增 / 刪除聯盟與玩家。<br>
-      排名採「競賽排名 + Emoji」（🥇🥈🥉）。
+      排名採「競賽排名 + Emoji」（🥇🥈🥉），觀戰區僅顯示 Emoji。
     </div>
 
     <div class="top-bar">
@@ -254,7 +265,7 @@
       <div class="panel">
         <div class="panel-title">總排行榜預覽</div>
         <div class="panel-subtitle">
-          view.html 觀戰頁會顯示與此區相同的內容。
+          view.html 即時觀戰區會顯示與此區相同的內容。
         </div>
         <table>
           <thead>
@@ -276,10 +287,12 @@
     </div>
   </div>
 
+  <!-- Firebase + 邏輯 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+    // 在這裡貼上你的 firebaseConfig
     const firebaseConfig = {
       apiKey: "AIzaSyA1bn1o--CZs8R9z66yWja5jtFgWgsYcjc",
       authDomain: "scoreboard-project-3c57c.firebaseapp.com",
@@ -289,7 +302,6 @@
       appId: "1:927335969684:web:7f3be6f470301def8f9581",
       measurementId: "G-0ZXW9PQKVV"
     };
-
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
 
@@ -303,8 +315,8 @@
 
     const urlParams = new URLSearchParams(location.search);
     const urlRoom   = urlParams.get("room");
-    roomInput.value = urlRoom || "default";
-    let roomId      = roomInput.value.trim() || "default";
+    roomInput.value = urlRoom || "classA";
+    let roomId      = roomInput.value.trim() || "classA";
     let roomRef     = ref(db, "rooms/" + roomId);
 
     const MAX_ALLIANCES = 8;
@@ -442,7 +454,7 @@
 
       alliances.forEach((ally, allyIndex) => {
         const players = Array.isArray(ally.players) ? ally.players : [];
-        ally.players  = players; // 確保之後有值
+        ally.players  = players;
 
         const block = document.createElement("div");
         block.className = "alliance-block";
@@ -593,7 +605,7 @@
         const tdScore = document.createElement("td");
 
         const emoji = rankEmoji(player.rank);
-        tdRank.textContent  = emoji ? `${player.rank} ${emoji}` : player.rank;
+        tdRank.textContent  = emoji ? emoji : "";   // ✅ 只顯示 Emoji
         tdAlly.textContent  = player.allianceName;
         tdName.textContent  = player.name;
         tdName.className    = "name-col";
@@ -634,7 +646,7 @@
     });
 
     changeRoomBtn.addEventListener("click", () => {
-      const newRoom = roomInput.value.trim() || "default";
+      const newRoom = roomInput.value.trim() || "classA";
       if (newRoom === roomId) return;
       roomId  = newRoom;
       roomRef = ref(db, "rooms/" + roomId);
